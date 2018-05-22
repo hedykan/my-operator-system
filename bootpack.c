@@ -176,9 +176,10 @@ void putfonts8_asc (char *vram, int xsize, int x, int y, char c, unsigned char *
 }
 
 void init_mouse_cursor8(char *mouse, char bc)
-//鼠标的16x16图像
+//鼠标的16x16图像, 画边框和填色
 {
-	static char cursor[16][16] = {
+	static char cursor[16][16] =
+	{
 		"**************..",
 		"*OOOOOOOOOOO*...",
 		"*OOOOOOOOOO*....",
@@ -198,15 +199,20 @@ void init_mouse_cursor8(char *mouse, char bc)
 	};
 	int x, y;
 
-	for (y = 0; y < 16; y++) {
-		for (x = 0; x < 16; x++) {
-			if (cursor[y][x] == '*') {
+	for (y = 0; y < 16; y++)
+	{
+		for (x = 0; x < 16; x++)
+		{
+			if (cursor[y][x] == '*')
+			{
 				mouse[y * 16 + x] = COL8_000000;
 			}
-			if (cursor[y][x] == 'O') {
+			if (cursor[y][x] == 'O')
+			{
 				mouse[y * 16 + x] = COL8_FFFFFF;
 			}
-			if (cursor[y][x] == '.') {
+			if (cursor[y][x] == '.')
+			{
 				mouse[y * 16 + x] = bc;
 			}
 		}
