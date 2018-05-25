@@ -16,7 +16,7 @@ void boxfill8 (unsigned char *vram, int xsize, unsigned char c, int x0, int y0, 
 void init_screen8 (char *vram, int x, int y);
 void putfont8 (char *vram, int xsize, int x, int y, char c, char *font);
 void putfonts8_asc (char *vram, int xsize, int x, int y, char c, unsigned char *s);
-void init_mouse_cursor8 (char *mouse, char bc);
+void init_mouse_cursor8 (char *mouse, char bc);	//初始化鼠标
 void putblock8_8 (char *vram, int vxsize, int pxsize,
 		  int pysize, int px0, int py0, char *buf, int bxsize);
 
@@ -222,6 +222,7 @@ void init_mouse_cursor8(char *mouse, char bc)
 
 void putblock8_8 (char *vram, int vxsize, int pxsize,
 		  int pysize, int px0, int py0, char *buf, int bxsize)
+//画图程序，知道p（图像）的x，ysize后，从px0和py0开始画图，从buf中取图像然后画到画面上，bxsize是图像的xsize
 {
 	int x, y;
 	for (y = 0; y < pysize; y++)
