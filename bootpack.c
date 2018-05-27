@@ -45,6 +45,28 @@ struct BOOTINFO
 };
 //½á¹¹ÌåºóÃæÒ»¶¨Òª¼Ó·ÖºÅ
 
+struct SEGMENT_DESCRIPTOR
+{
+  	short limit_low, base_low;
+  	char base_mid, access_right;
+  	char limit_high, base_high;
+};
+//È«¾Ö¶ÎºÅ¼ÇÂ¼±í
+
+struct GATE_DESCRIPTOR
+{
+  	short offset_low, selector;
+  	char dw_count, access_right;
+  	short offset_high;
+};
+//ÖÐ¶Ï¼ÇÂ¼±í
+
+void init_gdtidt (void);
+void set_segmdesc (struct SEGMENT_DESCRIPTOR *sd, unsigned int limit, int base, int ar);
+void set_gatedesc (struct GATE_DESCRIPTOR *gd, int offset, int selector, int ar);
+void load_gdtr (int limit, int addr);
+void load_idtr (int limit, int addr);
+
 void HariMain (void)
 {
 	struct BOOTINFO *binfo = (struct BOOTINFO *) 0x0ff0;
@@ -88,6 +110,7 @@ void init_palette (void)
 		0x84, 0x84, 0x84	/* 15:°µ»Ò */
 	};
 	set_palette (0, 15, table_rgb);
+	
 	return;
 
   /* cÓïÑÔÖÐstatic charÓï¾äÖ»ÄÜÓÃÓÚÊý¾Ý£¬Ïàµ±ÓÚ»ã±àÖÐµÄdbÖ¸Áî */
@@ -107,6 +130,7 @@ void set_palette (int start, int end, unsigned char *rgb)
 		rgb += 3;
 	}
 	io_store_eflags (eflags);	/* ¸´Ô­ÖÐ¶ÏÐí¿É±êÖ¾ */
+	
 	return;
 }
 
@@ -120,6 +144,7 @@ void boxfill8 (unsigned char *vram, int xsize, unsigned char c, int x0, int y0, 
 			vram[y * xsize + x] = c;
 		}
 	}
+	
 	return;
 }
 
@@ -141,6 +166,7 @@ void init_screen8 (char *vram, int x, int y)	//³õÊ¼»¯ÏÔÊ¾½çÃæ£¬xºÍy·Ö±ðÊÇ»­ÃæµÄ³
 	boxfill8 (vram, x, COL8_848484, x - 47, y - 23, x - 47, y -  4);
 	boxfill8 (vram, x, COL8_FFFFFF, x - 47, y -  3, x -  4, y -  3);
 	boxfill8 (vram, x, COL8_FFFFFF, x -  3, y - 24, x -  3, y -  3);
+	
 	return;
 }
 
@@ -161,6 +187,7 @@ void putfont8 (char *vram, int xsize, int x, int y, char c, char *font)
 		if ((d & 0x02) != 0) { p[6] = c; }
 		if ((d & 0x01) != 0) { p[7] = c; }
 	}
+	
 	return;
 }
 
@@ -172,6 +199,7 @@ void putfonts8_asc (char *vram, int xsize, int x, int y, char c, unsigned char *
 	  	putfont8 (vram, xsize, x, y, c, hankaku + *s * 16);	//³Ë16µÄÔ­ÒòÊÇÃ¿¸ö×Ö·û¹²Ê¹ÓÃ16¸ö8Î»Êý
 		x += 8;	//Ã¿´ÎxÍùºóÒÆ8Î»£¬¼´Ã¿¸ö×ÖÂÖÁ÷Êä³ö
 	}
+	
 	return;
 }
 
@@ -217,6 +245,7 @@ void init_mouse_cursor8(char *mouse, char bc)
 			}
 		}
 	}
+	
 	return;
 }
 
@@ -232,5 +261,58 @@ void putblock8_8 (char *vram, int vxsize, int pxsize,
 			vram[(py0 + y) * vxsize + (px0 + x)] = buf[y * bxsize + x];
 	  	}
 	}
+	
 	return;
+}
+
+void init_gdtidt (void)
+{
+  	struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *) 0x00270000;
+	struct GATE_DESCRIPTOR *idt = (struct GATE_DESCRIPTOR *) 0x0026f800;
+	int i;
+
+	//gdt³õÊ¼»¯
+	for (i = 0; i < 8192; i++)
+	{
+	  	set_segment (gdt + i, 0, 0, 0);
+	}
+	set_segment (gdt + 1, 0xffffffff, 0x00000000, 0x4096);
+	set_segment (gdt + 2, 0x0007ffff, 0x00280000, 0x409a);
+	load_gdtr (0xffff, 0x00270000);
+
+	//idt³õÊ¼»¯
+	for (i = 0; i < 256; i++)
+	{
+	  	set_gatedesc (idt + i, 0, 0, 0);
+	}
+	load_idtr (0x7ff, 0x0026f800);
+
+	return;
+}
+
+void set_segment (struct SEGMENT_DESCRIPTOR *sd, unsigned int limit, int base, int ar)
+{
+  	if (limit > 0xfffff)
+	{
+	  	ar |= 0x8000;		//ÉèÖÃG_bit = 1
+		limit /= 0x1000;
+	}
+	sd -> limit_low = limit & 0xffff;
+	sd -> base_low = base & 0xffff;
+	sd -> base_mid = (base >> 16) & 0xff;
+	sd -> access_right = ((limit >> 16) & 0x0f) | ((ar >> 8) & 0xf0);
+	sd -> base_high = (base >> 24) & 0xff;
+
+	return;
+}
+
+void set_gatedesc (struct GATE_DESCRIPTOR *gd, int offset, int selector, int ar)
+{
+  	gd->offset_low = offset & 0xffff;
+	gd->selector = selector;
+	gd->dw_count = (ar >> 8) & 0xff;
+	gd->access_right = ar & 0xff;
+	gd->offset_high = (offset >> 16) & 0xffff;
+	
+	return;                                                                                                                                  
 }
