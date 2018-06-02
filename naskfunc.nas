@@ -76,13 +76,14 @@ _io_store_eflags	; void io_store_eflags (int eflags)
 	POPFD			; pop eflags
 	RET
 
-_load_gdtr:		; void load_gdtr (int limit, int addr);
+_load_gdtr:		; void load_gdtr (int limit, int addr) 把64位的limit变成48位
 	MOV AX,[ESP+4]	; limit
 	MOV [ESP+6],AX
 	LGDT [ESP+6]
 	RET
+;执行LDTR后，根据limit和addr的值将其指向的后续数据是为GDT
 
-_load_idtr:		; void load_idtr (int limit, int addr);
+_load_idtr:		; void load_idtr (int limit, int addr)
 	MOV AX,[ESP+4]	; limit
 	MOV [ESP+6],AX
 	LGDT [ESP+6]
