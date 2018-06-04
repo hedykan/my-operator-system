@@ -20,3 +20,30 @@ void init_pic (void)
 
 	return;
 }
+
+void inthandler21 (int *esp)
+{
+  	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO; //指向bootinfo
+	boxfill8 (binfo->vram, binfo->scrnx, COL8_000000, 0, 0, 32 * 8 - 1, 15); 
+	putfonts8_asc (binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, "INT 21 (IRQ-1) : PS/2 keyboard"); //输出这行字
+	for (;;)
+	{
+	  	io_hlt ();
+	}
+}
+
+void inthandler2c (int *esp)
+{
+  	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
+	boxfill8 (binfo->vram, binfo->scrnx, COL8_000000, 0, 0, 32 * 8 - 1, 15);
+	putfonts8_asc (binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, "INT 2C (IRQ-12) : PS/2 mouse");
+	for (;;)
+	{
+	  	io_hlt();
+	}
+}
+
+void inthandler27 (int *esp)
+{
+  	io_out8(PIC0_OCW2, 0x67); //IRQ-07接受完成通知PIC
+}
