@@ -86,7 +86,8 @@ void set_gatedesc (struct GATE_DESCRIPTOR *gd, int offset, int selector, int ar)
 /* int.c */
 struct KEYBUF					// 键盘缓冲区
 {
-  	unsigned char data, flag;
+  	unsigned char data[32];
+  	int next;
 };
 void init_pic (void);				// 初始化可编程终端记录器pic
 void inthandler21 (int *esp);

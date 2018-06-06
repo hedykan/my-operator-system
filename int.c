@@ -32,10 +32,10 @@ void inthandler21 (int *esp)
 	
 	io_out8 (PIC0_OCW2, 0x61);
 	data = io_in8 (PORT_KEYDAT);
-	if (keybuf.flag == 0)
+	if (keybuf.next  < 32)	// 使用管道FIFO的方式置入缓冲区
 	{
-	  	keybuf.data = data;
-		keybuf.flag = 1;
+	  	keybuf.data[keybuf.next] = data;
+		keybuf.next++;
 	}
 	return;
 }
