@@ -1,6 +1,10 @@
 ; haribote-ipl
 ; TAB=4
+
+		CYLS	EQU		10
+
 		org	0X7c00
+		
 		JMP		entry
 		DB		0x90
 		DB		"HARIBOTE"		; 启动区名称可以是任意字符串（8字节）
@@ -23,60 +27,70 @@
 		RESB	18				; 先空出18字节
 		
 entry：
-		mov		ax,0 			;寄存器初始化
-		mov 	ss,ax 
-		mov 	sp,0X7c00 
-		mov 	ds,ax 
+		MOV	AX, 0 			;寄存器初始化
+		MOV 	SS, AX 
+		MOV 	SP, 0x7c00 
+		MOV 	DS, AX
 		
 ;磁盘读取
-		mov 	ax,0x0820 
-		mov 	es,ax 
-		mov 	ch,0 			;选取柱面0
-		mov 	dh,0 			;选取磁头0
-		mov 	cl,2 			;选取扇区2
+		MOV	AX, 0x0820 
+		MOV 	ES, AX 
+		MOV 	CH, 0			;选取柱面0
+		MOV 	DH, 0			;选取磁头0
+		MOV 	CL, 2			;选取扇区2
 		
 readloop:
-		mov 	si,0 			;失败次数
+		MOV	SI, 0 			;失败次数
 retry：		
-		mov 	ah,0x02 		;ah=0x02:读入磁盘
-		mov 	al,1 			;1个扇区
-		mov 	bx,0 
-		mov 	dl,0x00 		;A驱动器
-		int 	0x13 			;调用bios13号中断
-		JNC		next			; エラーがおきなければnextへ
-		ADD		SI,1			; SIに1を足す
-		CMP		SI,5			; SIと5を比較
-		JAE		error			; SI >= 5 だったらerrorへ
-		MOV		AH,0x00
-		MOV		DL,0x00			; Aドライブ
-		INT		0x13			; ドライブのリセット
-		JMP		retry
+		MOV	AH, 0x02 		;ah=0x02:读入磁盘
+		MOV 	AL, 1 			;1个扇区
+		MOV 	BX, 0 
+		MOV 	DL, 0x00 		;A驱动器
+		INT 	0x13 			;调用bios13号中断
+		JNC	next			; エラーがおきなければnextへ
+		ADD	SI,1			; SIに1を足す
+		CMP	SI,5			; SIと5を比較
+		JAE	error			; SI >= 5 だったらerrorへ
+		MOV	AH,0x00
+		MOV	DL,0x00			; Aドライブ
+		INT	0x13			; ドライブのリセット
+		JMP	retry
 next:
-		MOV		AX,ES			; アドレスを0x200進める
-		ADD		AX,0x0020
-		MOV		ES,AX			; ADD ES,0x020 という命令がないのでこうしている
-		ADD		CL,1			; CLに1を足す
-		CMP		CL,18			; CLと18を比較
-		JBE		readloop		
+		MOV	AX,ES			; アドレスを0x200進める
+		ADD	AX,0x0020
+		MOV	ES,AX			; ADD ES,0x020 という命令がないのでこうしている
+		ADD	CL,1			; CLに1を足す
+		CMP	CL,18			; CLと18を比較
+		JBE	readloop
+		MOV	CL,1
+		ADD	DH,1
+		CMP	DH,2
+		JB	readloop		; DH < 2 偩偭偨傜readloop傊
+		MOV	DH,0
+		ADD	CH,1
+		CMP	CH,CYLS
+		JB	readloop		; CH < CYLS 偩偭偨傜readloop傊
+
 		
 ;出现情况
 
-fin:
-		HLT 					;cpu停止运行
-		jmp 	fin 			;循环
-		
+		MOV	[0x0ff0], CH		; IPL写入内存
+		JMP	0xc200
+
 error:
-		mov 	si,msg
+		MOV	SI, msg
 putloop:
-		mov 	al,[si]
-		add 	si,1 			;si自加
-		cmp 	al,0 
-		je 		fin 
-		mov 	ah,0x0e 		;显示一个文字 
-		mov 	bx,15 			;指定字符颜色
-		int 	0x10 			;调用bios10号中断
-		jmp 	putloop 
-		
+		MOV	AL, [SI]
+		ADD 	SI, 1			;si自加
+		CMP	AL, 0
+		JE	fin 
+		MOV 	AH, 0x0e 		;显示一个文字 
+		MOV	BX, 15 			;指定字符颜色
+		INT 	0x10 			;调用bios10号中断
+		JMP 	putloop 
+fin:
+		HLT 				;cpu停止运行
+		JMP 	fin 			;循环		
 msg:
 		db 		0x0a, 0x0a 		;换行
 		db 		"load error"
