@@ -84,6 +84,10 @@ void set_gatedesc (struct GATE_DESCRIPTOR *gd, int offset, int selector, int ar)
 #define AR_INTGATE32	0x008e
 
 /* int.c */
+struct KEYBUF					// 键盘缓冲区
+{
+  	unsigned char data, flag;
+};
 void init_pic (void);				// 初始化可编程终端记录器pic
 void inthandler21 (int *esp);
 void inthandler27 (int *esp);
