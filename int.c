@@ -24,7 +24,7 @@ void init_pic (void)
 
 #define PORT_KEYDAT		       0x0060
 
-struct KEYBUF keybuf;
+struct FIFO8 keyfifo;
 
 void inthandler21 (int *esp)	// 键盘中断发生时，把键盘输出写入键盘缓冲区
 {
@@ -32,16 +32,7 @@ void inthandler21 (int *esp)	// 键盘中断发生时，把键盘输出写入键盘缓冲区
 	
 	io_out8 (PIC0_OCW2, 0x61);
 	data = io_in8 (PORT_KEYDAT);
-	if (keybuf.len  < 32)	// 使用管道FIFO的方式置入缓冲区
-	{
-	  	keybuf.data[keybuf.next_w] = data;
-		keybuf.len++;
-		keybuf.next_w++;
-		if (keybuf.next_w == 32)
-		{
-		  	keybuf.next_w = 0;
-		}
-	}
+	fifo8_put(&keyfifo, data);
 	return;
 }
 

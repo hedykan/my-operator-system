@@ -3,24 +3,25 @@
 #include "bootpack.h"
 #include <stdio.h>
 
-extern struct KEYBUF keybuf;			// 在int.c里定义的keybuf
+extern struct FIFO8 keyfifo;			// 在int.c里定义的keybuf
 
 void HariMain (void)
 {
 	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
-	char s[40], mcursor[256];
+	char s[40], mcursor[256], keybuf[32];
 	int mx, my, i;
 
 	init_gdtidt ();
 	init_pic ();
 	io_sti ();
-	
+
+	fifo8_init (&keyfifo, 32, keybuf);		// 键盘缓冲区初始化
 	io_out8 (PIC0_IMR, 0xf9);
 	io_out8 (PIC1_IMR, 0xef);
 		
 	init_palette ();
 	init_screen8 (binfo->vram, binfo->scrnx, binfo->scrny);
-	mx = (binfo->scrnx - 16) / 2;					// 找到画面中点
+	mx = (binfo->scrnx - 16) / 2;		    	// 找到画面中点
 	my = (binfo->scrny - 28 - 16) / 2;
 	init_mouse_cursor8 (mcursor, COL8_008484);
 	putblock8_8 (binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
@@ -30,19 +31,13 @@ void HariMain (void)
 	for (;;)
 	{
 		io_cli ();
-		if (keybuf.len == 0)	// 由len的长度决定是否读入，如果len不为0则读入
+		if (fifo8_status(&keyfifo) == 0)	// 返回keyfifo的状态以确定是否运行
 		{
 		  	io_stihlt ();
 		}
 		else
 		{
-		  	i = keybuf.data[keybuf.next_r];
-			keybuf.len--;
-			keybuf.next_r++;
-			if (keybuf.next_r == 32)
-			{
-			  	keybuf.next_r = 0;
-			}
+		  	i = fifo8_get (&keyfifo);
 			io_sti ();
 			sprintf (s, "%02X", i);
 			boxfill8 (binfo->vram, binfo->scrnx, COL8_008484, 0, 16, 15,31);
