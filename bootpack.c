@@ -4,6 +4,8 @@
 #include <stdio.h>
 
 extern struct FIFO8 keyfifo;			// 在int.c里定义的keybuf
+void enable_mouse (void);			// 打开鼠标接收
+void init_keyboard (void);			// 初始化键盘电路
 
 void HariMain (void)
 {
@@ -18,6 +20,8 @@ void HariMain (void)
 	fifo8_init (&keyfifo, 32, keybuf);		// 键盘缓冲区初始化
 	io_out8 (PIC0_IMR, 0xf9);
 	io_out8 (PIC1_IMR, 0xef);
+
+	init_keyboard ();				// 初始化键盘控制电路
 		
 	init_palette ();
 	init_screen8 (binfo->vram, binfo->scrnx, binfo->scrny);
@@ -27,6 +31,8 @@ void HariMain (void)
 	putblock8_8 (binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
 	sprintf (s, "(%d, %d)", mx, my);
 	putfonts8_asc (binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
+
+	enable_mouse ();				// 打开鼠标
 
 	for (;;)
 	{
@@ -45,3 +51,45 @@ void HariMain (void)
 		}
 	}
  }
+
+#define PORT_KEYDAT		0x0060
+#define PORT_KEYSTA			0x0064
+#define PORT_KEYCMD		0x0064
+#define KEYSTA_SEND_NOTREADY	0x02
+#define KEYCMD_WRITE_MODE	0x60
+#define KBC_MODE			0x47
+
+void wait_KBC_sendready (void)
+{
+  	for (;;)
+	{
+	  	if ((io_in8 (PORT_KEYSTA) & KEYSTA_SEND_NOTREADY) == 0)
+		{
+		  	break;
+		}
+	}
+	return;
+}
+
+void init_keyboard (void)
+{
+  	wait_KBC_sendready ();
+	io_out8 (PORT_KEYCMD, KEYCMD_WRITE_MODE);
+	wait_KBC_sendready ();
+	io_out8 (PORT_KEYDAT, KBC_MODE);
+
+	return;
+}
+
+#define KEYCMD_SENDTO_MOUSE	0xd4
+#define MOUSECMD_ENABLE		0xf4
+
+void enable_mouse (void)
+{
+  	wait_KBC_sendready ();
+	io_out8 (PORT_KEYCMD, KEYCMD_SENDTO_MOUSE);
+	wait_KBC_sendready ();
+	io_out8 (PORT_KEYDAT, MOUSECMD_ENABLE);
+
+	return;
+}
