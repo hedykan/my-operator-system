@@ -3,14 +3,14 @@
 #include "bootpack.h"
 #include <stdio.h>
 
-extern struct FIFO8 keyfifo;			// 在int.c里定义的keybuf
+extern struct FIFO8 keyfifo, mousefifo;			// 在int.c里定义的keybuf
 void enable_mouse (void);			// 打开鼠标接收
 void init_keyboard (void);			// 初始化键盘电路
 
 void HariMain (void)
 {
 	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
-	char s[40], mcursor[256], keybuf[32];
+	char s[40], mcursor[256], keybuf[32], mousebuf[128];
 	int mx, my, i;
 
 	init_gdtidt ();
@@ -18,6 +18,7 @@ void HariMain (void)
 	io_sti ();
 
 	fifo8_init (&keyfifo, 32, keybuf);		// 键盘缓冲区初始化
+	fifo8_init (&mousefifo, 128, mousebuf);	// 鼠标缓冲区初始化
 	io_out8 (PIC0_IMR, 0xf9);
 	io_out8 (PIC1_IMR, 0xef);
 
@@ -37,17 +38,28 @@ void HariMain (void)
 	for (;;)
 	{
 		io_cli ();
-		if (fifo8_status(&keyfifo) == 0)	// 返回keyfifo的状态以确定是否运行
+		if (fifo8_status(&keyfifo) + fifo8_status(&mousefifo) == 0)	// 返回keyfifo的状态以确定是否运行
 		{
 		  	io_stihlt ();
 		}
 		else
 		{
-		  	i = fifo8_get (&keyfifo);
-			io_sti ();
-			sprintf (s, "%02X", i);
-			boxfill8 (binfo->vram, binfo->scrnx, COL8_008484, 0, 16, 15,31);
-			putfonts8_asc (binfo->vram, binfo->scrnx, 0, 16, COL8_FFFFFF, s);
+		  	if (fifo8_status(&keyfifo) != 0)		// 键盘缓冲区检测为非0
+			{
+			  	i = fifo8_get (&keyfifo);
+				io_sti ();
+				sprintf (s, "%02X", i);
+				boxfill8 (binfo->vram, binfo->scrnx, COL8_008484, 0, 16, 15,31);
+				putfonts8_asc (binfo->vram, binfo->scrnx, 0, 16, COL8_FFFFFF, s);
+			}
+			else if (fifo8_status(&mousefifo) != 0)	// 鼠标缓冲区检测为非0
+			{
+			  	i = fifo8_get (&mousefifo);
+				io_sti ();
+				sprintf (s, "%02X", i);
+				boxfill8 (binfo->vram, binfo->scrnx, COL8_008484, 32, 16, 47,31);
+				putfonts8_asc (binfo->vram, binfo->scrnx, 32, 16, COL8_FFFFFF, s);
+			}
 		}
 	}
  }
@@ -59,7 +71,7 @@ void HariMain (void)
 #define KEYCMD_WRITE_MODE	0x60
 #define KBC_MODE			0x47
 
-void wait_KBC_sendready (void)
+void wait_KBC_sendready (void)		// 等待键盘完成
 {
   	for (;;)
 	{
