@@ -14,6 +14,8 @@ struct BOOTINFO		// 0x0ff0-0x0fff
 void io_hlt (void);
 void io_cli (void);
 void io_sti (void);
+void io_stihlt (void);
+int io_in8 (int port);
 void io_out8 (int port, int data);
 int io_load_eflags (void);
 void io_store_eflags (int eflags);
@@ -100,3 +102,15 @@ void inthandler2c (int *esp);
 #define PIC1_ICW2		0x00a1
 #define PIC1_ICW3		0x00a1
 #define PIC1_ICW4		0x00a1
+
+/* fifo.c */
+struct FIFO8
+{
+  	unsigned char *buf;		// 缓冲区大小可变，所以在需要具体定位的时候会使用buf[]的方式去定位，实际上就是buf+[]
+  					// 且要需被指定一个内存区域
+  	int p, q, size, free, flags;	// 分别为左边界，右边界，总大小，剩余空间，溢出标志
+};
+void fifo8_init (struct FIFO8 *fifo, int size, unsigned char *buf);
+int fifo8_put (struct FIFO8 *fifo, unsigned char data);
+int fifo8_get (struct FIFO8 *fifo);
+int fifo8_status (struct FIFO8 *fifo);
