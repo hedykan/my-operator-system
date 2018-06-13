@@ -6,6 +6,7 @@
 struct MOUSE_DEC
 {
   	unsigned char buf[3], phase;
+  	int x, y, btn;
 };
 
 extern struct FIFO8 keyfifo, mousefifo;					// 在int.c里定义的keybuf
@@ -66,8 +67,14 @@ void HariMain (void)
 
 				if (mouse_decode (&mdec, i) != 0)
 				{
-				  	sprintf (s, "%02X, %02X, %02X", mdec.buf[0], mdec.buf[1], mdec.buf[2]);	// 这里的medc不是指针，所以不能用->
-					boxfill8 (binfo->vram, binfo->scrnx, COL8_008484, 32, 16, 32 + 10 * 8 - 1, 31);	//要注意刷新的区域是多少
+				  	sprintf (s, "[lcr, %4d, %4d]", mdec.x, mdec.y);	// 这里的medc不是指针，所以不能用->
+					if ((mdec.btn & 0x01) !=0)	// 三个按键被按下后进行字符的替换
+					  	s[1] = 'L';
+					if ((mdec.btn & 0x02) != 0)
+					  	s[3] = 'R';
+					if ((mdec.btn & 0x04) != 0)
+					  	s[2] = 'C';
+					boxfill8 (binfo->vram, binfo->scrnx, COL8_008484, 32, 16, 32 + 17 * 8 - 1, 31);	//要注意刷新的区域是多少
 					putfonts8_asc (binfo->vram, binfo->scrnx, 32, 16, COL8_FFFFFF, s);
 				}
 			}
@@ -87,9 +94,7 @@ void wait_KBC_sendready (void)		// 等待键盘完成
   	for (;;)
 	{
 	  	if ((io_in8 (PORT_KEYSTA) & KEYSTA_SEND_NOTREADY) == 0)
-		{
 		  	break;
-		}
 	}
 	return;
 }
@@ -123,15 +128,16 @@ int mouse_decode (struct MOUSE_DEC *mdec, unsigned char dat)
   	if (mdec->phase == 0)
 	{
 	  	if (dat == 0xfa)       	// 鼠标接收开始
-		{
 		  	mdec->phase = 1;
-		}
 		return 0;
 	}
 	else if (mdec->phase == 1)	// 鼠标数据分割
 	{
-	    	mdec->buf[0] = dat;
-		mdec->phase = 2;
+	  	if((dat & 0xc8) == 0x08)	// 确认第一个字节是鼠标按键，防止错位
+		{
+	    		mdec->buf[0] = dat;
+			mdec->phase = 2;
+		}
 		return 0;
 	}
 	else if (mdec->phase == 2)
@@ -144,6 +150,15 @@ int mouse_decode (struct MOUSE_DEC *mdec, unsigned char dat)
 	{
 	    	mdec->buf[2] = dat;
 		mdec->phase = 1;	// 重复接收的循环
+
+		mdec->btn = mdec->buf[0] & 0x07;		// 取鼠标按键的低三位
+		mdec->x = mdec->buf[1];
+		mdec->y = mdec->buf[2];
+		if ((mdec->buf[0] & 0x10) != 0)		// 鼠标按键区高四位的低一位为一
+		  	mdec->x |= 0xffffff00;
+		if ((mdec->buf[0] & 0x20) != 0)		// 鼠标按键区高四位的低二位为一
+		  	mdec->y |= 0xffffff00;
+		mdec->y = -mdec->y;	// y是反过来的
 		return 1;		// 接收完毕，允许输出
 	}
 	return -1;
