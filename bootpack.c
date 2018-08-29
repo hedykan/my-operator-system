@@ -3,6 +3,8 @@
 #include "bootpack.h"
 #include <stdio.h>
 
+unsigned int memtest (unsigned int start, unsigned int end);	// 内存测试
+
 void HariMain (void)
 {
 	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
@@ -20,6 +22,7 @@ void HariMain (void)
 	io_out8 (PIC1_IMR, 0xef);
 
 	init_keyboard ();				// 初始化键盘控制电路
+	enable_mouse (&mdec);			// 打开鼠标
 		
 	init_palette ();
 	init_screen8 (binfo->vram, binfo->scrnx, binfo->scrny);
@@ -30,7 +33,9 @@ void HariMain (void)
 	sprintf (s, "(%d, %d)", mx, my);
 	putfonts8_asc (binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
 
-	enable_mouse (&mdec);				// 打开鼠标
+	i = memtest (0x00400000, 0xbfffffff) / (1024 * 1024);
+	sprintf (s, "memory %dMB", i);
+	putfonts8_asc (binfo->vram, binfo->scrnx, 0, 32, COL8_FFFFFF, s);
 
 	for (;;)
 	{
@@ -90,3 +95,42 @@ void HariMain (void)
 		}
 	}
  }
+
+#define EFLAGS_AC_BIT		0x00040000
+#define CR0_CACHE_DISABLE		0x60000000
+
+unsigned int memtest (unsigned int start, unsigned int end)
+{
+  	char flg486 = 0;
+	unsigned int eflg, cr0, i;
+
+	// 检测cpu是386还是486模式
+	eflg = io_load_eflags ();	// 取得eflg的值
+	eflg |= EFLAGS_AC_BIT;	// 置18位AC-bit = 1 486第18位是AC位，386没有，可通过这个判断是否为486
+	io_store_eflags (eflg);
+	eflg = io_load_eflags ();
+	if ((eflg & EFLAGS_AC_BIT) != 0)	// 386没有AC位，所以即使置了位也还是0，与后等于0
+	{
+	  	flg486 = 1;
+	}
+	eflg &= ~EFLAGS_AC_BIT;	// 取反后相与，置AC位为0
+	io_store_eflags (eflg);
+
+	if (flg486 != 0)
+	{
+	  	cr0 = load_cr0 ();
+		cr0 |= CR0_CACHE_DISABLE;	//关掉缓存
+		store_cr0 (cr0);
+	}
+
+	i = memtest_sub (start, end);		// 算出大小
+
+	if (flg486 != 0)
+	{
+	  	cr0 = load_cr0 ();
+		cr0 &= ~CR0_CACHE_DISABLE;	// 打开缓存
+		store_cr0 (cr0);
+	}
+
+	return i;
+}
